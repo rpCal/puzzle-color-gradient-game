@@ -1,4 +1,7 @@
 
-// document.addEventListener("")
+// document.addEventListener("DOMContentLoaded", () => { });
 
-const app = document.querySelector('#app');
+window.addEventListener("load", function(event) { 
+    const app = document.querySelector('#app');
+    console.log('?', app);
+});

@@ -16,7 +16,7 @@
   "scripts": {
     "test": "jest --watchAll",
     "start": "webpack --watch --config webpack.config.js",
-    "server": "lite-server --baseDir='./public/'"
+    "server": "lite-server --baseDir='public'"
   },
   "author": "",
   "license": "ISC"

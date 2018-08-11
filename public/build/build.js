@@ -93,7 +93,7 @@
 /*! no static exports found */
 /***/ (function(module, exports) {
 
-eval("// document.addEventListener(\"\")\nvar app = document.querySelector('#app');\n\n\n//# sourceURL=webpack:///./src/index.ts?");
+eval("// document.addEventListener(\"DOMContentLoaded\", () => { });\nwindow.addEventListener(\"load\", function (event) {\n    var app = document.querySelector('#app');\n    console.log('?', app);\n});\n\n\n//# sourceURL=webpack:///./src/index.ts?");
 
 /***/ })
 
