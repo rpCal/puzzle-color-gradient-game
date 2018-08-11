@@ -6,9 +6,13 @@
       "target": "es5",
       "allowJs": true,
       "sourceMap": true,
+      "lib": [
+        "dom", "es2016"
+      ]
     },
     "exclude": [
         "node_modules",
-        "public"
+        "public",
+        "src/__tests__"
     ]
   }
