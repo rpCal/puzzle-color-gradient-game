@@ -110,6 +110,40 @@ class Level {
         // nasluchiwac na event zakoczenia levela
     }
 
+// DODAC gradient na canvas
+// var  gr  = context.createLinearGradient(0,  0,  100,  0);
+// // Add the   color stops. 
+// gr.addColorStop(0,'rgb(255,0,0)'); 
+// gr.addColorStop(.5,'rgb(0,255,0)'); 
+// gr.addColorStop(1,'rgb(255,0,0)');
+// // Use the gradient
+// fillStyle.context.fillStyle  = gr; 
+// context.fillRect(0,  0,100,100);
+
+// Dodaj clipping do elementu
+// Create a shape, of some sort
+// Save the state, so we can undo the clipping
+// ctx.save();
+// ctx.beginPath();
+// ctx.moveTo(10, 10);
+// ctx.lineTo(100, 30);
+// ctx.lineTo(180, 10);
+// ctx.lineTo(200, 60);
+// ctx.arcTo(180, 70, 120, 0, 10);
+// ctx.lineTo(200, 180);
+// ctx.lineTo(100, 150);
+// ctx.lineTo(70, 180);
+// ctx.lineTo(20, 130);
+// ctx.lineTo(50, 70);
+// ctx.closePath();
+// // Clip to the current path
+// ctx.clip();
+// ctx.drawImage(img, 0, 0);
+// Undo the clipping
+// ctx.restore();
+
+
+
     fillChildrendWithGradient(){
         // interface IGradient {
         //     type: GradientType,
