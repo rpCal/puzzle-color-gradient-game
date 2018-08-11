@@ -26,13 +26,12 @@ window.addEventListener("load", function(event) {
     const _colors = [0xFFFFFF, 0xFF1122, 0x000000, 0xFF9955, 0xFFFFFF]
     const level_1 = new Level({
         elem: wrapper,
-        rows: 4,
-        cols: 2,
+        rows: 2,
+        cols: 1,
         gradient: { 
             type: GradientType.LINEAR, 
             
             colors: _colors,
-            // colors: [0xFFFFFF, 0xFF1122],
             angleDeg: 180
         } as IGradient,
         blocked: [0, 2, 3, 5, 6, 8],
@@ -163,6 +162,8 @@ class Level {
 
             let colorStartHeight = gradientColorIndexStart * colorHeight;
             let percentageColorStart = (y - colorStartHeight) / colorHeight;
+            let diffHeightInPx =  colorHeight - (y - colorStartHeight);  
+
 
             console.log('KOLORY', hexToRgb(gradientColorStart), hexToRgb(gradientColorEnd))
             console.log("%%", percentageColorStart, y, colorStartHeight, colorHeight, gradientColorIndexStart);
@@ -172,7 +173,8 @@ class Level {
             return {
                 css: cssColorFinish,
                 gradientColorIndexStart: gradientColorIndexStart,
-                gradientColorIndexEnd: gradientColorIndexEnd
+                gradientColorIndexEnd: gradientColorIndexEnd,
+                diffHeightInPx: diffHeightInPx,
             }
         }
 
@@ -198,16 +200,31 @@ class Level {
                 // let containerHeight:number = this.parentHeight
                 // let colorHeight:number = containerHeight / (this.gradient.colors.length - 1);
                 // let aa = colorHeight / containerHeight;
-                
 
-                let cssColors = `${colStart.css}, `;
+                
+                let percentageStart = 0;
+                if(i == 0){
+                    // percentageStart = colStart.diffHeightInPx / parseInt(height, 10) - 100;  
+                    
+                }else{
+                    // percentageStart = colStart.diffHeightInPx / parseInt(height, 10) - 100;  
+                }
+                percentageStart = colStart.diffHeightInPx / parseInt(height, 10);  
+
+                let percentageCss = (percentageStart) ? percentageStart + "%": ""
+                let cssColors = `${colStart.css} ${percentageCss}, `;
                 for(let j = colStart.gradientColorIndexEnd; j < colEnd.gradientColorIndexEnd; j++){
+                    // let percentageCurrent:number = colStart.diffHeightInPx / parseInt(height, 10) - 100;  
+                    // console.log('------------- co mamy w przesunieciu?', percentageCurrent, colStart.diffHeightInPx, parseInt(height, 10));
+                    // Wys = wysokosc przesuniecia wzgledem poczatku kolor w px
+                    // ProcentPrzesuniecia = cala wysokosc bloku pojedycznego / Wys
                     let currentColor = this.gradient.colors[j];
                     cssColors += `rgb(${hexToRgb(currentColor)}), `
                 }
                 cssColors += `${colEnd.css}`;
                 console.log(' ?? ', i, cssColors);
-                let cssBackground = `${cssGradientType}(${cssAngleDeg}, ${cssColors})`                
+                let cssBackground = `${cssGradientType}(${cssAngleDeg}, ${cssColors})`
+                console.log('co wyszlo?', cssBackground, cssAngleDeg)                
                 
                 child.style.background = cssBackground;   
                 child.style.border = "1px solid #0FF"; 
