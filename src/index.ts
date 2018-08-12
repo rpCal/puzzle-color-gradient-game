@@ -24,14 +24,20 @@ window.addEventListener("load", function(event) {
     wrapper.style.cssFloat = "left"
     wrapper.classList.add('game-wrapper');
     body.appendChild(wrapper);
-    const _colors = [0xFFFFFF, 0xFF1122, 0x000000, 0xFF9955, 0xFFFFFF]
+    const _colors = [
+            {color: 0xFFFFFF, percentage: 0}, 
+            {color: 0xFF1122, percentage: 0.3}, 
+            {color: 0x000000, percentage: 0.5}, 
+            {color: 0xFF9955, percentage: 0.7}, 
+            {color: 0xFFFFFF, percentage: 1}, 
+    ];
+
     const level_1 = new Level({
         elem: wrapper,
         rows: 5,
         cols: 3,
         gradient: { 
             type: GradientType.LINEAR, 
-            
             colors: _colors,
             angleDeg: 180
         } as IGradient,
@@ -39,22 +45,22 @@ window.addEventListener("load", function(event) {
         onFinishedLevel: () => {}
     } as ILevelInput); 
 
-    let canvas = document.createElement('canvas');
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
-    canvas.style.position = "absolute";
-    canvas.style.top = "0px";
-    canvas.style.left = "0px";
-    canvas.style.zIndex = "100";
-    canvas.width = width;
-    canvas.height = height;
-    wrapper.appendChild(canvas);
-    let context = canvas.getContext('2d');
-    let childHeight = height / (_colors.length - 1);
-    context.fillStyle = "rgba(100, 100, 255, 1)";
-    for(let i = 0; i < _colors.length; i++){
-        context.fillRect(0, (childHeight * i) - 1, width, 2);
-    }
+    // let canvas = document.createElement('canvas');
+    // canvas.style.width = `${width}px`;
+    // canvas.style.height = `${height}px`;
+    // canvas.style.position = "absolute";
+    // canvas.style.top = "0px";
+    // canvas.style.left = "0px";
+    // canvas.style.zIndex = "100";
+    // canvas.width = width;
+    // canvas.height = height;
+    // wrapper.appendChild(canvas);
+    // let context = canvas.getContext('2d');
+    // let childHeight = height / (_colors.length - 1);
+    // context.fillStyle = "rgba(100, 100, 255, 1)";
+    // for(let i = 0; i < _colors.length; i++){
+    //     context.fillRect(0, (childHeight * i) - 1, width, 2);
+    // }
    
     
 });
@@ -67,9 +73,14 @@ enum GradientType {
     QUAD = 2,
 }
 
+type GradientColor = {
+    color: number,
+    percentage: number
+}
+
 interface IGradient {
     type: GradientType,
-    colors: Array<number>,
+    colors: Array<GradientColor>,
     angleDeg: number 
 }
 
@@ -81,6 +92,13 @@ interface ILevelInput {
     blocked: Array<number>,
     onFinishedLevel: Function
 }
+type LevelChildren = {
+    elem: HTMLElement,
+    isBlocked: boolean,
+    startTop: number,
+    startLeft: number,
+    isMouseDownPressed?: boolean,
+}
 
 class Level {
     parentElement: HTMLElement = null;
@@ -88,9 +106,10 @@ class Level {
     parentHeight: number;
     rows:number;
     cols:number;
-    childrens: Array<HTMLElement> = [];
+    childrens: Array<LevelChildren> = [];
     gradient: IGradient;
     mainChildCanvas: HTMLCanvasElement;
+    blockedChildrensIndexes: Array<number>
 
     constructor(initOptions: ILevelInput){
         // wyzerowac kontener z poprzednich danych
@@ -99,18 +118,95 @@ class Level {
         // odczytac w & h kontenera .elem
         this.readContainerSize();
 
-        // stworzyc dzieci 
+        
         this.rows = initOptions.rows;
         this.cols = initOptions.cols;
+
+        this.gradient = initOptions.gradient;
         this.createMainChildCanvas();
+        
+        // stworzyc dzieci 
+        // nalozyc gradient na dzieci
         this.createChildrens();
 
-        // nalozyc gradient na dzieci
-        // this.gradient = initOptions.gradient;
-        // this.fillChildrendWithGradient();
         // zablokowac dzieci ktore sa w .blocked
+        this.blockedChildrensIndexes = initOptions.blocked;
+        this.blockChildrens();
+        
         // podpiac eventy do dziecki 
+        this.attachEvents();
         // nasluchiwac na event zakoczenia levela
+        
+    }
+
+    detachEvents(){
+        for(let i:number = 0, child; child = this.childrens[i]; i++){
+            let childClone  = child.elem.cloneNode(true);
+            child.elem.parentNode.replaceChild(childClone, child.elem);
+            child.elem = childClone as HTMLElement;
+        }
+    }
+
+    attachEvents(){
+        for(let i:number = 0, child:LevelChildren; child = this.childrens[i]; i++){
+            
+            let { elem, isBlocked, startLeft, startTop } = child;
+
+            if(isBlocked){ continue; }
+
+            let shiftTop = 0;
+            let shiftLeft = 0;
+
+            const onMouseMove = (ev: MouseEvent) => {
+                if(child.isMouseDownPressed){        
+                    let newLeft = ev.clientX - this.parentElement.offsetLeft + shiftLeft;
+                    let newTop = ev.clientY - this.parentElement.offsetTop + shiftTop;
+                    console.log('?', 
+                        this.parentElement.offsetLeft, this.parentElement.offsetTop,
+                        ev.clientX, ev.clientY, 
+                        ev.clientX - this.parentElement.offsetLeft, ev.clientY - this.parentElement.offsetTop,
+                        elem.style.top, elem.style.left)
+                    elem.style.top = `${newTop}px`;
+                    elem.style.left = `${newLeft}px`;
+                }
+            }
+            
+            const onMouseUp = (ev: MouseEvent) => {
+                elem.style.transform = "scale(1)";
+                elem.style.zIndex = "1";
+                elem.style.top = `${startTop}px`;
+                elem.style.left = `${startLeft}px`;
+                child.isMouseDownPressed = false;
+                elem.removeEventListener('mouseup', onMouseUp);
+                elem.removeEventListener('mousemove', onMouseMove);
+            }
+
+            const onMouseDown = (ev: MouseEvent) => {
+                // elem.style.transform = "scale(1.3)";
+                // elem.style.zIndex = "2";
+                // child.isMouseDownPressed = true;
+                console.log('jakie przesuniecie?')
+                console.log('?', ev.clientX, ev.clientY,
+                elem.offsetTop, elem.offsetLeft, "|",
+                        ev.clientX - elem.offsetLeft, ev.clientY - elem.offsetTop)
+
+                // shiftTop = ev.clientX - this.parentElement.offsetLeft;
+                // shiftLeft = ev.clientY - this.parentElement.offsetTop;
+                // elem.addEventListener('mouseup', onMouseUp)
+                // elem.addEventListener('mousemove', onMouseMove);
+            }
+            
+            elem.addEventListener('mousedown', onMouseDown);
+        }
+    }
+
+    blockChildrens(){
+        for(let i:number = 0; i < this.blockedChildrensIndexes.length; i++){
+            let index = this.blockedChildrensIndexes[i];
+            this.childrens[index].isBlocked = true;
+            this.childrens[index].elem.style.opacity = "0.5";
+            this.childrens[index].elem.style.cursor = "default";
+        }
     }
 
 
@@ -118,44 +214,57 @@ class Level {
         let mainChildCanvas = document.createElement('canvas');
         mainChildCanvas.width = this.parentWidth;
         mainChildCanvas.height = this.parentHeight;
-        mainChildCanvas.style.opacity = "1";
+        mainChildCanvas.style.opacity = "0.01";
         mainChildCanvas.style.position = "absolute";
         mainChildCanvas.style.top = "0px";
-        mainChildCanvas.style.left = "-501px";
+        mainChildCanvas.style.left = "0px";
         mainChildCanvas.style.zIndex = "0";
 
         let mainChildCanvasCTX = mainChildCanvas.getContext('2d');
         
-        // get angle from bottom left to top right
         let pheta = Math.atan2(-mainChildCanvas.height, mainChildCanvas.width);
-
-        // get the length of the line from bottom right to diagonal line we got the ang of.
-        // dont need the abd but cant be bothered explaining why its negative 
         let AB = Math.abs(mainChildCanvas.height * Math.cos(pheta)); 
-        
-        // get vector at 90 deg from found angle
+
         let xdx = Math.cos(pheta + Math.PI/2);
         let xdy = Math.sin(pheta + Math.PI/2);
 
-        // from the center C of rectangle move AB dist back and forward to find points E and D
         let x1 = mainChildCanvas.width/2 - xdx * AB;
         let y1 = mainChildCanvas.height/2 - xdy * AB;
         let x2 = mainChildCanvas.width/2 + xdx * AB;
         let y2 = mainChildCanvas.height/2 + xdy * AB;
 
+        const hexToRgb = (hex:number) => {
+            var r = (hex >> 16) & 255;
+            var g = (hex >> 8) & 255;
+            var b = hex & 255;
+            return {r, g, b};
+        }
 
-        // let length = mainChildCanvas.height + 150;
-        // let angle = 45;
-        // let x1 = 0;
-        // let y1 = 0;
-        // let x2 = length * Math.cos(angle);  // angle in radians
-        // let y2 = length * Math.sin(angle);  // angle in radians
-        // mainChildCanvas.height
+        const componentToHex = (c:number) => {
+            var hex = c.toString(16);
+            return hex.length == 1 ? "0" + hex : hex;
+        }
+        
+        const rgbToHex = (r:number, g:number, b:number) => {
+            return "#" + componentToHex(r) + componentToHex(g) + componentToHex(b);
+        }
+
         let gradient = mainChildCanvasCTX.createLinearGradient(x1, y1, x2, y2);
-        gradient.addColorStop(0, '#fff');
-        gradient.addColorStop(0.5, '#0ff');
-        gradient.addColorStop(0.9, '#bada55');
-        gradient.addColorStop(1, '#000000');  
+
+        for(let i:number = 0, el:GradientColor; el = this.gradient.colors[i]; i++){
+            let percentage = 0;
+            if(el.percentage < 0){
+                percentage = 0;
+            }else if (el.percentage > 1){
+                percentage = 1;
+            }else{
+                percentage = el.percentage;
+            }
+            let hex = hexToRgb(el.color);
+            let color = `${rgbToHex(hex.r, hex.g, hex.b)}`;
+            gradient.addColorStop(percentage, color);    
+        }
+
         mainChildCanvasCTX.fillStyle = gradient;
         mainChildCanvasCTX.fillRect(0, 0, mainChildCanvas.width, mainChildCanvas.height);
 
@@ -167,7 +276,7 @@ class Level {
         let iterateCount = this.rows * this.cols;
         let childHeight = Math.ceil(this.parentHeight / this.rows);
         let childWidth = Math.ceil(this.parentWidth / this.cols);
-
+        
         for(let i:number = 0; i < iterateCount; i++){
             let child = document.createElement('div');
 
@@ -175,7 +284,11 @@ class Level {
             child.style.width = `${childWidth}px`;
             child.style.height = `${childHeight}px`;
             child.style.position = "absolute";
-            child.style.zIndex = "0";
+            child.style.zIndex = "1";
+            child.style.opacity = "1";
+            child.style.cursor = "move";
+            child.style.border = "1px solid #000";
+            child.style.transform = "scale(1)";
 
             let currentRow = Math.floor(i / this.cols);
             let top = childHeight * currentRow;
@@ -195,7 +308,12 @@ class Level {
 
             child.appendChild(childCanvas);
             this.parentElement.appendChild(child);
-            this.childrens.push(child);
+            this.childrens.push({
+                elem: child,
+                isBlocked: false,
+                startLeft: left,
+                startTop: top
+            } as LevelChildren);
         }
     }
 
