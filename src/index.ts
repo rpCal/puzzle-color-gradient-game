@@ -7,15 +7,16 @@ window.addEventListener("load", function(event) {
    
     const body:HTMLElement = document.querySelector('body');
     
-    let mainDiv:HTMLElement = document.createElement('div');
-    mainDiv.style.width = `${width}px`;
-    mainDiv.style.height = `${height}px`; 
-    mainDiv.style.background = "#0ff";
-    mainDiv.style.marginBottom = "20px"; 
-    mainDiv.style.cssFloat = "left"
-    mainDiv.style.background = "transparent"
+    // sample gradient - DEBUG ONLY
+    // let mainDiv:HTMLElement = document.createElement('div');
+    // mainDiv.style.width = `${width}px`;
+    // mainDiv.style.height = `${height}px`; 
+    // mainDiv.style.background = "#0ff";
+    // mainDiv.style.marginBottom = "20px"; 
+    // mainDiv.style.cssFloat = "left"
+    // mainDiv.style.background = "transparent"
     // mainDiv.style.background = `linear-gradient(180deg, #fff, #FF1122, #000, #FF9955, #fff)`
-    body.appendChild(mainDiv);
+    // body.appendChild(mainDiv);
 
     let wrapper:HTMLElement = document.createElement('div');
     wrapper.style.width = `${width}px`;
@@ -25,26 +26,27 @@ window.addEventListener("load", function(event) {
     wrapper.classList.add('game-wrapper');
     body.appendChild(wrapper);
     const _colors = [
-            {color: 0xFFFFFF, percentage: 0}, 
-            {color: 0xFF1122, percentage: 0.3}, 
-            {color: 0x000000, percentage: 0.5}, 
-            {color: 0xFF9955, percentage: 0.7}, 
-            {color: 0xFFFFFF, percentage: 1}, 
+            {color: 0xF38630, percentage: 0}, 
+            {color: 0xFA6900, percentage: 0.3}, 
+            {color: 0xE0E4CC, percentage: 0.5}, 
+            {color: 0xA7DBD8, percentage: 0.7}, 
+            {color: 0x69D2E7, percentage: 1}, 
     ];
 
     const level_1 = new Level({
         elem: wrapper,
         rows: 5,
-        cols: 3,
+        cols: 5,
         gradient: { 
             type: GradientType.LINEAR, 
             colors: _colors,
             angleDeg: 180
         } as IGradient,
-        blocked: [0, 2, 3, 5, 6, 8],
+        blocked: [0, 2, 3, 5, 6, 8, 22, 24],
         onFinishedLevel: () => {}
     } as ILevelInput); 
 
+    // GRID on canvas - DEBUG ONLY 
     // let canvas = document.createElement('canvas');
     // canvas.style.width = `${width}px`;
     // canvas.style.height = `${height}px`;
@@ -92,13 +94,19 @@ interface ILevelInput {
     blocked: Array<number>,
     onFinishedLevel: Function
 }
+
 type LevelChildren = {
+    id: string,
     elem: HTMLElement,
     isBlocked: boolean,
     startTop: number,
     startLeft: number,
     isMouseDownPressed?: boolean,
+    isClicked?: boolean,
+    startIndex: number,
+    currentIndex: number
 }
+
 
 class Level {
     parentElement: HTMLElement = null;
@@ -110,6 +118,7 @@ class Level {
     gradient: IGradient;
     mainChildCanvas: HTMLCanvasElement;
     blockedChildrensIndexes: Array<number>
+    secoundBeforeStart: number = 6
 
     constructor(initOptions: ILevelInput){
         // wyzerowac kontener z poprzednich danych
@@ -129,74 +138,142 @@ class Level {
         // nalozyc gradient na dzieci
         this.createChildrens();
 
-        // zablokowac dzieci ktore sa w .blocked
-        this.blockedChildrensIndexes = initOptions.blocked;
-        this.blockChildrens();
+        // show loading wrapper
+        this.showStartCounter();
+
+        // when loading time finished - shuffle and add events
+        setTimeout(() => {
+
+            // zablokowac dzieci ktore sa w .blocked
+            this.blockedChildrensIndexes = initOptions.blocked;
+            this.blockChildrens();
+
+            this.shuffleChildrens();
+            
+            // podpiac eventy do dziecki 
+            // plus nasluchiwac na event zakoczenia levela
+            this.attachEvents();
+        }, (this.secoundBeforeStart * 1000));
+    }
+    showStartCounter(){
+        let timeFinish = new Date(new Date().getTime() + this.secoundBeforeStart * 1000);
+        let counter = document.createElement('div');
+        counter.style.position = "absolute";
+        counter.style.width = "250px"
+        counter.style.height = "250px"
+        counter.style.top = "50%";
+        counter.style.left = "50%";
+        counter.style.transform = "translate(-50%, -50%)"
+        counter.style.display = "block";
+        counter.style.zIndex = "10";
+        counter.style.fontSize = "80px";
+        counter.style.color = "#fff";
+        counter.style.background = "rgba(105,210,231,1)"
+        counter.style.borderRadius = "50%";
+        counter.style.textAlign = "center";
+        counter.style.lineHeight = `250px`;
         
-        // podpiac eventy do dziecki 
-        this.attachEvents();
-        // nasluchiwac na event zakoczenia levela
-        
+        let interval = setInterval(() => {
+            var now = new Date();
+            var diff = timeFinish.getTime() - now.getTime();
+            var sec = Math.floor(diff / 1000);
+            if(sec <= 0){
+                counter.innerHTML = "";
+                counter.remove();
+                clearInterval(interval);
+            }else{
+                counter.innerHTML = `${sec}s`
+            }
+        }, 100);
+        this.parentElement.appendChild(counter);
+    }
+
+    shuffleChildrens(){
+        let blockedCount = this.blockedChildrensIndexes.length;
+        for(let i = 0, from:LevelChildren; from = this.childrens[i]; i++){
+            if(!from.isBlocked){
+                let toIndex = null;
+                let to = null;
+                
+                while(true){
+                    toIndex = Math.floor(Math.random() * (this.childrens.length - blockedCount));
+                    to = this.childrens[toIndex]; 
+                    if(to.isBlocked === false){ break; }
+                }
+
+                if(toIndex != null && to != null){
+                    this.replaceChildrenPosition(from, to);
+                }
+            }
+        }
+    }
+
+    levelFinished(){
+        console.log('koniec gry');
+        this.detachEvents();
+    }
+
+    isLevelFinished(){
+        return this.childrens.every((e) => e.startIndex === e.currentIndex);
     }
 
     detachEvents(){
         for(let i:number = 0, child; child = this.childrens[i]; i++){
-            let childClone  = child.elem.cloneNode(true);
+            let childClone = child.elem.cloneNode(true);
             child.elem.parentNode.replaceChild(childClone, child.elem);
             child.elem = childClone as HTMLElement;
         }
     }
 
+    replaceChildrenPosition(from: LevelChildren, to: LevelChildren){
+        let top = to.elem.style.top;
+        let left = to.elem.style.left; 
+
+        to.elem.style.top = from.elem.style.top;
+        to.elem.style.left = from.elem.style.left;
+        
+        from.elem.style.top = top;
+        from.elem.style.left = left;
+
+        let index = from.currentIndex;
+        from.currentIndex = to.currentIndex;
+        to.currentIndex = index;
+    }
+
     attachEvents(){
+        let isItemClicked:boolean = false;
+        let itemClicked:LevelChildren = null;
         for(let i:number = 0, child:LevelChildren; child = this.childrens[i]; i++){
             
-            let { elem, isBlocked, startLeft, startTop } = child;
+            let { elem, isBlocked } = child;
 
             if(isBlocked){ continue; }
 
-            let shiftTop = 0;
-            let shiftLeft = 0;
+            const onClick = (ev: MouseEvent) => {
+                if(isItemClicked && itemClicked != null){
+                    itemClicked.elem.style.transform = "scale(1.0)";
+                    itemClicked.elem.style.zIndex = "1";
 
-            const onMouseMove = (ev: MouseEvent) => {
-                if(child.isMouseDownPressed){        
-                    let newLeft = ev.clientX - this.parentElement.offsetLeft + shiftLeft;
-                    let newTop = ev.clientY - this.parentElement.offsetTop + shiftTop;
-                    console.log('?', 
-                        this.parentElement.offsetLeft, this.parentElement.offsetTop,
-                        ev.clientX, ev.clientY, 
-                        ev.clientX - this.parentElement.offsetLeft, ev.clientY - this.parentElement.offsetTop,
-                        elem.style.top, elem.style.left)
-                    elem.style.top = `${newTop}px`;
-                    elem.style.left = `${newLeft}px`;
+                    this.replaceChildrenPosition(itemClicked, child);
+                    
+                    itemClicked = null;
+                    isItemClicked = false;   
+                    
+                    if(this.isLevelFinished()){
+                        this.levelFinished()
+                    }; 
+                }else{
+                    elem.style.transform = "scale(1.2)";
+                    elem.style.zIndex = "2";
+                    child.isClicked = true;
+
+                    isItemClicked = true;
+                    itemClicked = child;
                 }
-            }
-            
-            const onMouseUp = (ev: MouseEvent) => {
-                elem.style.transform = "scale(1)";
-                elem.style.zIndex = "1";
-                elem.style.top = `${startTop}px`;
-                elem.style.left = `${startLeft}px`;
-                child.isMouseDownPressed = false;
-                elem.removeEventListener('mouseup', onMouseUp);
-                elem.removeEventListener('mousemove', onMouseMove);
+
             }
 
-            const onMouseDown = (ev: MouseEvent) => {
-                // elem.style.transform = "scale(1.3)";
-                // elem.style.zIndex = "2";
-                // child.isMouseDownPressed = true;
-                console.log('jakie przesuniecie?')
-                console.log('?', ev.clientX, ev.clientY,
-                elem.offsetTop, elem.offsetLeft, "|",
-                        ev.clientX - elem.offsetLeft, ev.clientY - elem.offsetTop)
-
-                // shiftTop = ev.clientX - this.parentElement.offsetLeft;
-                // shiftLeft = ev.clientY - this.parentElement.offsetTop;
-                // elem.addEventListener('mouseup', onMouseUp)
-                // elem.addEventListener('mousemove', onMouseMove);
-            }
-            
-            elem.addEventListener('mousedown', onMouseDown);
+            elem.addEventListener('click', onClick);
         }
     }
 
@@ -204,8 +281,21 @@ class Level {
         for(let i:number = 0; i < this.blockedChildrensIndexes.length; i++){
             let index = this.blockedChildrensIndexes[i];
             this.childrens[index].isBlocked = true;
-            this.childrens[index].elem.style.opacity = "0.5";
-            this.childrens[index].elem.style.cursor = "default";
+            this.childrens[index].elem.style.opacity = "1";
+            this.childrens[index].elem.style.cursor = "not-allowed";
+            let dot = document.createElement('div');
+            dot.innerHTML = "&bull;"
+            dot.style.position = "absolute";
+            dot.style.top = "50%";
+            dot.style.left = "50%";
+            dot.style.width = "auto";
+            dot.style.height = "auto";
+            dot.style.color = "#000";
+            dot.style.transform = "translate(-50%, -50%)";
+            dot.style.fontSize = "30px";
+            dot.style.textAlign = "center";
+            dot.style.lineHeight = `${this.childrens[index].elem.style.height}px`;
+            this.childrens[index].elem.appendChild(dot);
         }
     }
 
@@ -222,16 +312,16 @@ class Level {
 
         let mainChildCanvasCTX = mainChildCanvas.getContext('2d');
         
-        let pheta = Math.atan2(-mainChildCanvas.height, mainChildCanvas.width);
+        let pheta = Math.atan2(- mainChildCanvas.height, mainChildCanvas.width);
         let AB = Math.abs(mainChildCanvas.height * Math.cos(pheta)); 
 
         let xdx = Math.cos(pheta + Math.PI/2);
         let xdy = Math.sin(pheta + Math.PI/2);
 
-        let x1 = mainChildCanvas.width/2 - xdx * AB;
-        let y1 = mainChildCanvas.height/2 - xdy * AB;
-        let x2 = mainChildCanvas.width/2 + xdx * AB;
-        let y2 = mainChildCanvas.height/2 + xdy * AB;
+        let x1 = mainChildCanvas.width / 2 - xdx * AB;
+        let y1 = mainChildCanvas.height / 2 - xdy * AB;
+        let x2 = mainChildCanvas.width / 2 + xdx * AB;
+        let y2 = mainChildCanvas.height / 2 + xdy * AB;
 
         const hexToRgb = (hex:number) => {
             var r = (hex >> 16) & 255;
@@ -274,8 +364,9 @@ class Level {
 
     createChildrens(){
         let iterateCount = this.rows * this.cols;
-        let childHeight = Math.ceil(this.parentHeight / this.rows);
-        let childWidth = Math.ceil(this.parentWidth / this.cols);
+        let childHeight = Math.floor(this.parentHeight / this.rows);
+        let childWidth = Math.floor(this.parentWidth / this.cols);
+        let id = 0;
         
         for(let i:number = 0; i < iterateCount; i++){
             let child = document.createElement('div');
@@ -284,11 +375,14 @@ class Level {
             child.style.width = `${childWidth}px`;
             child.style.height = `${childHeight}px`;
             child.style.position = "absolute";
+            child.style.padding = "0px";
             child.style.zIndex = "1";
             child.style.opacity = "1";
             child.style.cursor = "move";
-            child.style.border = "1px solid #000";
-            child.style.transform = "scale(1)";
+            child.style.border = "0px solid #eee";
+            child.style.transform = "scale(1)"; 
+            child.style.animationDuration = "1s";
+            child.style.animationTimingFunction = "ease-in-out"
 
             let currentRow = Math.floor(i / this.cols);
             let top = childHeight * currentRow;
@@ -308,14 +402,62 @@ class Level {
 
             child.appendChild(childCanvas);
             this.parentElement.appendChild(child);
+            id++;
             this.childrens.push({
                 elem: child,
                 isBlocked: false,
                 startLeft: left,
-                startTop: top
+                startTop: top,
+                id: id.toString(),
+                startIndex: i,
+                currentIndex: i
             } as LevelChildren);
         }
     }
+
+    // attachMoveEvents(){
+
+        // let shiftTop = 0;
+        // let shiftLeft = 0;
+
+        // const onMouseMove = (ev: MouseEvent) => {
+        //     if(child.isMouseDownPressed){        
+        //         let newLeft = ev.clientX - this.parentElement.offsetLeft + shiftLeft;
+        //         let newTop = ev.clientY - this.parentElement.offsetTop + shiftTop;
+        //         console.log('?', 
+        //             this.parentElement.offsetLeft, this.parentElement.offsetTop,
+        //             ev.clientX, ev.clientY, 
+        //             ev.clientX - this.parentElement.offsetLeft, ev.clientY - this.parentElement.offsetTop,
+        //             elem.style.top, elem.style.left)
+        //         elem.style.top = `${newTop}px`;
+        //         elem.style.left = `${newLeft}px`;
+        //     }
+        // }
+        
+        // const onMouseUp = (ev: MouseEvent) => {
+        //     elem.style.transform = "scale(1)";
+        //     elem.style.zIndex = "1";
+        //     elem.style.top = `${startTop}px`;
+        //     elem.style.left = `${startLeft}px`;
+        //     child.isMouseDownPressed = false;
+        //     elem.removeEventListener('mouseup', onMouseUp);
+        //     // elem.removeEventListener('mousemove', onMouseMove);
+        // }
+
+        // const onMouseDown = (ev: MouseEvent) => {
+        //     elem.style.transform = "scale(1.2)";
+        //     elem.style.zIndex = "2";
+        //     child.isMouseDownPressed = true;
+
+        //     shiftTop    = (ev.clientY - this.parentElement.offsetTop - elem.offsetTop)  * 1.2;
+        //     shiftLeft   = (ev.clientX - this.parentElement.offsetLeft - elem.offsetLeft) * 1.2;
+
+        //     window.addEventListener('mouseup', onMouseUp);
+        //     window.addEventListener('mousemove', onMouseMove);
+        // }
+        
+        // elem.addEventListener('mousedown', onMouseDown);
+    // }
 
 
     // fillChildrendWithGradient(){
